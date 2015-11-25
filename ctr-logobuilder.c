@@ -22,6 +22,9 @@ u8 *filebuf;
 bclyt_header *layout_header;
 u32 filebuf_size = 0x4000, layout_pos = 0;
 
+int texture_coords_set = 0x0;
+float texture_coords[2][5];//[0][...] = bottom, [1][...] = top. [...][0..4] = width, height, x, y, and z.
+
 int layout_addsection(u32 sectionid, u8 *section_payload, u32 section_payloadsize)
 {
 	if(layout_pos+8+section_payloadsize > filebuf_size)
@@ -422,14 +425,23 @@ int anim_buildsection_pai1(char *mat_name, char *rootpane_name)
 	return layout_addsection(0x31696170, section_data, 0x44);
 }
 
-int build_layoutsections(char *texture_filename, float screen_width)
+int build_layoutsections(char *texture_filename, int screenid)
 {
 	int ret;
-	float tmpfloat;
+	float tmpfloat, screen_width = 0.0f;
 	u32 *floatptr = (u32*)&tmpfloat;
 	u32 size;
 	char *panerefs[2];
 	u8 section_data[0x40];
+
+	if(screenid==0)
+	{
+		screen_width = 320.0f;
+	}
+	else if(screenid==1)
+	{
+		screen_width = 400.0f;
+	}
 
 	//lyt1
 	memset(section_data, 0, sizeof(section_data));
@@ -472,7 +484,7 @@ int build_layoutsections(char *texture_filename, float screen_width)
 	ret = layout_addpansection("HbRoot0", 0x3, 40.f, 40.f);
 	if(ret)return ret;
 
-	ret = layout_addpicsection("HbMat", 128.0f, 64.0f, 0.0f, -120.0f, 0.0f);
+	ret = layout_addpicsection("HbMat", texture_coords[screenid][0], texture_coords[screenid][1], texture_coords[screenid][2], texture_coords[screenid][3], texture_coords[screenid][4]);
 	if(ret)return ret;
 
 	ret = layout_finishpane();
@@ -519,7 +531,7 @@ int build_animsections(char *scene_name, char *group_name)
 	return 0;
 }
 
-int build_layout(char *layout_filename, char *texture_filename, float screen_width)
+int build_layout(char *layout_filename, char *texture_filename, int screenid)
 {
 	int ret;
 	FILE *f;
@@ -547,7 +559,7 @@ int build_layout(char *layout_filename, char *texture_filename, float screen_wid
 
 	layout_pos = sizeof(bclyt_header);
 
-	ret = build_layoutsections(texture_filename, screen_width);
+	ret = build_layoutsections(texture_filename, screenid);
 	if(ret)
 	{
 		fclose(f);
@@ -615,6 +627,33 @@ int build_anim(char *anim_filename, char *scene_name, char *group_name)
 	return 0;
 }
 
+int parse_texcoords_input(char *arg, int screenid)
+{
+	int ret;
+	u32 pos;
+	char *strptr = NULL;
+
+	for(pos=0; pos<5; pos++)
+	{
+		if(pos==0)strptr = strtok(arg, ",");
+		if(pos)strptr = strtok(NULL, ",");
+
+		if(strptr==NULL)
+		{
+			printf("Missing token in the coordinates input. %d\n", pos);
+			return 1;
+		}
+
+		sscanf(strptr, "%f", &texture_coords[screenid][pos]);
+	}
+
+	printf("Parsed coordinates for screenid %d: width=%f, height=%f. x=%f, y=%f, z=%f.\n", screenid, texture_coords[screenid][0], texture_coords[screenid][1], texture_coords[screenid][2], texture_coords[screenid][3], texture_coords[screenid][4]);
+
+	texture_coords_set |= 1<<screenid;
+
+	return 0;
+}
+
 int main(int argc, char **argv)
 {
 	int argi;
@@ -626,6 +665,8 @@ int main(int argc, char **argv)
 	char tmpstr0[0x40];
 	char tmpstr1[0x40];
 	char tmpstr2[0x40];
+
+	memset(texture_coords, 0, sizeof(texture_coords));
 
 	if(argc==1)
 	{
@@ -643,6 +684,18 @@ int main(int argc, char **argv)
 		if(strncmp(argv[argi], "--dirpath=", 10)==0)darc_dirpath = &argv[argi][10];
 		if(strncmp(argv[argi], "--bottomtex=", 12)==0)bottomtex_filename = &argv[argi][12];
 		if(strncmp(argv[argi], "--toptex=", 9)==0)toptex_filename = &argv[argi][9];
+
+		if(strncmp(argv[argi], "--bottomtexcoords=", 18)==0)
+		{
+			ret = parse_texcoords_input(&argv[argi][18], 0);
+			if(ret)return ret;
+		}
+
+		if(strncmp(argv[argi], "--toptexcoords=", 15)==0)
+		{
+			ret = parse_texcoords_input(&argv[argi][15], 1);
+			if(ret)return ret;
+		}
 	}
 
 	if(darc_dirpath==NULL)
@@ -657,6 +710,12 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
+	if(texture_coords_set != 0x3)
+	{
+		printf("Specify the bottom/top texture coords.\n");
+		return 1;
+	}
+
 	filebuf = malloc(0x4000);
 	if(filebuf==NULL)
 	{
@@ -665,19 +724,23 @@ int main(int argc, char **argv)
 		return 3;
 	}
 
-	ret = build_layout("NintendoLogo_D_00.bclyt", bottomtex_filename, 320.f);
+	printf("Building the layouts...\n");
+
+	ret = build_layout("NintendoLogo_D_00.bclyt", bottomtex_filename, 0);
 	if(ret)
 	{
 		free(filebuf);
 		return ret;
 	}
 
-	ret = build_layout("NintendoLogo_U_00.bclyt", toptex_filename, 400.0f);
+	ret = build_layout("NintendoLogo_U_00.bclyt", toptex_filename, 1);
 	if(ret)
 	{
 		free(filebuf);
 		return ret;
 	}
+
+	printf("Building the animation files...\n");
 
 	for(pos=0; pos<2; pos++)
 	{
@@ -697,6 +760,8 @@ int main(int argc, char **argv)
 	}
 
 	free(filebuf);
+
+	printf("Done.\n");
 
 	return ret;
 }
