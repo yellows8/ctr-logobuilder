@@ -8,6 +8,11 @@ For the build scripts, the first param is the prefix file-path for the logo file
 
 The utils.* and types.h files are from ctrtool.
 
+Requirements for using the build scripts:
+* https://github.com/yellows8/darctool
+* https://github.com/Steveice10/bannertool (lz11 compression)
+* "$HOME/.3ds/logo_hmackey_text", hex 64-character text file, originally extracted from binary in the Home Menu codebin.
+
 The following documentation were referenced as a base:
 * http://florian.nouwt.com/wiki/index.php/CLYT_%28File_Format%29
 * http://wiibrew.org/wiki/Wii_Animations
