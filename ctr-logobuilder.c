@@ -673,9 +673,13 @@ int main(int argc, char **argv)
 		printf("%s by yellows8\n", argv[0]);
 		printf("Tool for building the data used with 3DS ExeFS:/logo.\n");
 		printf("Usage:\n");
+		printf("%s <options>\n", argv[0]);
+		printf("Options:\n");
 		printf("--dirpath=<path> Required, this is the path where the darc directory stucture is located.\n");
-		printf("--bottomtex=<path> Filename for the bottom-screen texture, under the timg directory.\n");
-		printf("--toptex=<path> Filename for the top-screen texture, under the timg directory. These two image filenames are *only* used for writing into the .bclyt, this tool will not verify that the specified file actually exists.\n");
+		printf("--bottomtex=<path> Required, filename for the bottom-screen texture, under the timg directory.\n");
+		printf("--toptex=<path> Required, filename for the top-screen texture, under the timg directory. These two image filenames are *only* used for writing into the .bclyt, this tool will not verify that the specified file actually exists.\n");
+		printf("--bottomtexcoords={coords} Required, coordinates for the bottom-screen texture.\n");
+		printf("--toptexcoords={coords} Required, coordinates for the top-screen texture. {coords} are floats: {<width>,<height>,<x>,<y>,<z>}.\n");
 		return 0;
 	}
 
